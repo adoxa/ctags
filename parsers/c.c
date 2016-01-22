@@ -2751,9 +2751,22 @@ static void initParenInfo (parenInfo *const info)
 static void analyzeParens (statementInfo *const st)
 {
 	tokenInfo *const prev = prevToken (st, 1);
+	const tokenInfo *const prev2 = prevToken (st, 2);
 
-	if (st->inFunction  &&  ! st->assignment)
+	if (
+			st->inFunction &&
+			!st->assignment &&
+			!(
+				/* C++: Accept Type var(...) as variable; */
+				isInputLanguage(Lang_cpp) &&
+				isType(prev,TOKEN_NAME) &&
+				isType(prev2,TOKEN_NAME)
+			)
+		)
+	{
 		st->notVariable = TRUE;
+	}
+
 	if (! isType (prev, TOKEN_NONE))  /* in case of ignored enclosing macros */
 	{
 		tokenInfo *const token = activeToken (st);
@@ -2765,7 +2778,11 @@ static void analyzeParens (statementInfo *const st)
 		c = skipToNonWhite ();
 		cppUngetc (c);
 		if (info.invalidContents)
+		{
+			/* FIXME: This breaks parsing of variable instantiations that have
+			   constants as parameters: Type var(0) or Type var("..."). */
 			reinitStatement (st, FALSE);
+		}
 		else if (info.isNameCandidate  &&  isType (token, TOKEN_PAREN_NAME)  &&
 				 ! st->gotParenName  &&
 				 (! info.isParamList || ! st->haveQualifyingName  ||
@@ -3227,6 +3244,12 @@ static void tagCheck (statementInfo *const st)
 						(st->declaration == DECL_CLASS || st->declaration == DECL_STRUCT ||
 						st->declaration == DECL_INTERFACE || st->declaration == DECL_UNION))
 						qualifyBlockTag (st, prev2);
+					else if(isInputLanguage (Lang_cpp) && st->inFunction)
+					{
+						/* Ignore. C/C++ allows nested function prototypes but
+						   this code actually catches far too many of them.
+						   Better some missing tags than a lot of false positives. */
+					}
 					else
 					{
 						if (! isInputLanguage (Lang_vera))
@@ -3288,8 +3311,12 @@ static void tagCheck (statementInfo *const st)
 			}
 			else if (isType (prev, TOKEN_ARGS)  &&  isType (prev2, TOKEN_NAME))
 			{
-				if (st->isPointer)
+				if (st->isPointer || st->inFunction)
+				{
+					/* If it looks like a pointer or we are in a function body then
+					   it's far more likely to be a variable. */
 					qualifyVariableTag (st, prev2);
+				}
 				else
 					qualifyFunctionDeclTag (st, prev2);
 			}

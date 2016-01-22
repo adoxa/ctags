@@ -432,6 +432,9 @@ static const char *const Features [] = {
 #ifdef HAVE_COPROC
 	"coproc",
 #endif
+#ifdef HAVE_LIBXML
+	"xpath",
+#endif
 	NULL
 };
 
@@ -545,7 +548,7 @@ extern void verbose (const char *const format, ...)
 	{
 		va_list ap;
 		va_start (ap, format);
-		vfprintf (errout, format, ap);
+		vfprintf (stderr, format, ap);
 		va_end (ap);
 	}
 }
@@ -555,11 +558,11 @@ extern void notice (const char *const format, ...)
 	if (!Option.quiet)
 	{
 		va_list ap;
-		fprintf (errout, "%s: Notice: ", getExecutableName ());
+		fprintf (stderr, "%s: Notice: ", getExecutableName ());
 		va_start (ap, format);
-		vfprintf (errout, format, ap);
+		vfprintf (stderr, format, ap);
 		va_end (ap);
-		fputs ("\n", errout);
+		fputs ("\n", stderr);
 	}
 }
 
